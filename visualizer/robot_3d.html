@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>机器人动作3D可视化</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+            color: #fff;
+            overflow: hidden;
+        }
+        #container { width: 100vw; height: 100vh; }
+        
+        .ui-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 20px;
+            border: 1px solid rgba(255,255,255,0.1);
+            max-width: 300px;
+        }
+        
+        .title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 16px;
+            color: #00d4ff;
+        }
+        
+        .action-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .action-btn {
+            padding: 12px 16px;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            color: #fff;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.3s;
+            font-size: 14px;
+        }
+        
+        .action-btn:hover {
+            background: rgba(0,212,255,0.2);
+            border-color: #00d4ff;
+            transform: translateX(5px);
+        }
+        
+        .action-btn.active {
+            background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%);
+            border-color: #00d4ff;
+        }
+        
+        .info-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 20px;
+            border: 1px solid rgba(255,255,255,0.1);
+            min-width: 250px;
+        }
+        
+        .info-title {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 12px;
+            color: #00d4ff;
+        }
+        
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            font-size: 13px;
+        }
+        
+        .info-label { color: rgba(255,255,255,0.6); }
+        .info-value { color: #fff; font-family: monospace; }
+    </style>
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "./lib/three.module.js",
+            "three/addons/": "./lib/"
+        }
+    }
+    </script>
+</head>
+<body>
+    <div id="container"></div>
+    
+    <div class="ui-panel">
+        <div class="title">🤖 动作演示</div>
+        <div class="action-list">
+            <button class="action-btn" id="btn-idle">🧍 待机</button>
+            <button class="action-btn" id="btn-walk">🚶 行走</button>
+            <button class="action-btn" id="btn-grasp">✊ 抓取</button>
+            <button class="action-btn" id="btn-look">👀 注视</button>
+            <button class="action-btn" id="btn-speak">🗣️ 说话</button>
+            <button class="action-btn" id="btn-handover">🤝 递送</button>
+            <button class="action-btn" id="btn-wave">👋 挥手</button>
+        </div>
+    </div>
+    
+    <div class="info-panel">
+        <div class="info-title">📋 当前动作</div>
+        <div class="info-item">
+            <span class="info-label">动作</span>
+            <span class="info-value" id="actionName">待机</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">状态</span>
+            <span class="info-value" id="actionStatus">静止</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">描述</span>
+            <span class="info-value" id="actionDesc">机器人处于待机状态</span>
+        </div>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        
+        // 场景初始化
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.shadowMap.enabled = true;
+        document.getElementById('container').appendChild(renderer.domElement);
+        
+        // 相机位置
+        camera.position.set(3, 2, 4);
+        camera.lookAt(0, 1, 0);
+        
+        // 轨道控制
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.target.set(0, 1, 0);
+        
+        // 灯光
+        const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
+        scene.add(ambientLight);
+        
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+        directionalLight.position.set(5, 10, 5);
+        directionalLight.castShadow = true;
+        scene.add(directionalLight);
+        
+        const blueLight = new THREE.PointLight(0x00d4ff, 0.5, 10);
+        blueLight.position.set(-2, 3, 2);
+        scene.add(blueLight);
+        
+        // 地面网格
+        const gridHelper = new THREE.GridHelper(10, 20, 0x00d4ff, 0x333355);
+        scene.add(gridHelper);
+        
+        const groundGeometry = new THREE.PlaneGeometry(10, 10);
+        const groundMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0x1a1a2e, 
+            transparent: true, 
+            opacity: 0.5 
+        });
+        const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+        ground.rotation.x = -Math.PI / 2;
+        ground.receiveShadow = true;
+        scene.add(ground);
+        
+        // 创建机器人
+        const robot = new THREE.Group();
+        
+        // 材质
+        const bodyMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0x2a2a4a, 
+            metalness: 0.8, 
+            roughness: 0.2 
+        });
+        const jointMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0x00d4ff, 
+            metalness: 0.9, 
+            roughness: 0.1,
+            emissive: 0x00d4ff,
+            emissiveIntensity: 0.3
+        });
+        const headMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0x1a1a3a, 
+            metalness: 0.7, 
+            roughness: 0.3 
+        });
+        
+        // 身体
+        const torso = new THREE.Mesh(
+            new THREE.BoxGeometry(0.4, 0.5, 0.25),
+            bodyMaterial
+        );
+        torso.position.y = 1.1;
+        torso.castShadow = true;
+        robot.add(torso);
+        
+        // 头部
+        const head = new THREE.Mesh(
+            new THREE.BoxGeometry(0.25, 0.28, 0.22),
+            headMaterial
+        );
+        head.position.y = 1.55;
+        head.castShadow = true;
+        robot.add(head);
+        
+        // 眼睛
+        const eyeGeo = new THREE.SphereGeometry(0.03, 16, 16);
+        const eyeMat = new THREE.MeshStandardMaterial({ 
+            color: 0x00ffff, 
+            emissive: 0x00ffff, 
+            emissiveIntensity: 1 
+        });
+        const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
+        leftEye.position.set(-0.06, 1.58, 0.11);
+        robot.add(leftEye);
+        
+        const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
+        rightEye.position.set(0.06, 1.58, 0.11);
+        robot.add(rightEye);
+        
+        // 脖子
+        const neck = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.06, 0.08, 0.1, 16),
+            jointMaterial
+        );
+        neck.position.y = 1.38;
+        robot.add(neck);
+        
+        // 手臂
+        const armGeo = new THREE.CapsuleGeometry(0.04, 0.35, 8, 16);
+        
+        // 左臂
+        const leftUpperArm = new THREE.Mesh(armGeo, bodyMaterial);
+        leftUpperArm.position.set(-0.32, 1.15, 0);
+        leftUpperArm.castShadow = true;
+        robot.add(leftUpperArm);
+        
+        const leftLowerArm = new THREE.Mesh(armGeo, bodyMaterial);
+        leftLowerArm.position.set(-0.32, 0.8, 0);
+        leftLowerArm.castShadow = true;
+        robot.add(leftLowerArm);
+        
+        // 左手指
+        const leftHand = new THREE.Mesh(
+            new THREE.BoxGeometry(0.08, 0.1, 0.04),
+            jointMaterial
+        );
+        leftHand.position.set(-0.32, 0.55, 0);
+        robot.add(leftHand);
+        
+        // 右臂
+        const rightUpperArm = new THREE.Mesh(armGeo, bodyMaterial);
+        rightUpperArm.position.set(0.32, 1.15, 0);
+        rightUpperArm.castShadow = true;
+        robot.add(rightUpperArm);
+        
+        const rightLowerArm = new THREE.Mesh(armGeo, bodyMaterial);
+        rightLowerArm.position.set(0.32, 0.8, 0);
+        rightLowerArm.castShadow = true;
+        robot.add(rightLowerArm);
+        
+        // 右手
+        const rightHand = new THREE.Mesh(
+            new THREE.BoxGeometry(0.08, 0.1, 0.04),
+            jointMaterial
+        );
+        rightHand.position.set(0.32, 0.55, 0);
+        robot.add(rightHand);
+        
+        // 髋部
+        const hip = new THREE.Mesh(
+            new THREE.BoxGeometry(0.35, 0.15, 0.2),
+            bodyMaterial
+        );
+        hip.position.y = 0.78;
+        hip.castShadow = true;
+        robot.add(hip);
+        
+        // 腿部
+        const legGeo = new THREE.CapsuleGeometry(0.055, 0.4, 8, 16);
+        
+        // 左腿
+        const leftUpperLeg = new THREE.Mesh(legGeo, bodyMaterial);
+        leftUpperLeg.position.set(-0.12, 0.48, 0);
+        leftUpperLeg.castShadow = true;
+        robot.add(leftUpperLeg);
+        
+        const leftLowerLeg = new THREE.Mesh(legGeo, bodyMaterial);
+        leftLowerLeg.position.set(-0.12, 0.1, 0);
+        leftLowerLeg.castShadow = true;
+        robot.add(leftLowerLeg);
+        
+        const leftFoot = new THREE.Mesh(
+            new THREE.BoxGeometry(0.1, 0.05, 0.18),
+            bodyMaterial
+        );
+        leftFoot.position.set(-0.12, -0.12, 0.03);
+        robot.add(leftFoot);
+        
+        // 右腿
+        const rightUpperLeg = new THREE.Mesh(legGeo, bodyMaterial);
+        rightUpperLeg.position.set(0.12, 0.48, 0);
+        rightUpperLeg.castShadow = true;
+        robot.add(rightUpperLeg);
+        
+        const rightLowerLeg = new THREE.Mesh(legGeo, bodyMaterial);
+        rightLowerLeg.position.set(0.12, 0.1, 0);
+        rightLowerLeg.castShadow = true;
+        robot.add(rightLowerLeg);
+        
+        const rightFoot = new THREE.Mesh(
+            new THREE.BoxGeometry(0.1, 0.05, 0.18),
+            bodyMaterial
+        );
+        rightFoot.position.set(0.12, -0.12, 0.03);
+        robot.add(rightFoot);
+        
+        // 关节球
+        const jointGeo = new THREE.SphereGeometry(0.05, 16, 16);
+        
+        const leftShoulder = new THREE.Mesh(jointGeo, jointMaterial);
+        leftShoulder.position.set(-0.32, 1.35, 0);
+        robot.add(leftShoulder);
+        
+        const rightShoulder = new THREE.Mesh(jointGeo, jointMaterial);
+        rightShoulder.position.set(0.32, 1.35, 0);
+        robot.add(rightShoulder);
+        
+        const leftHipJoint = new THREE.Mesh(jointGeo, jointMaterial);
+        leftHipJoint.position.set(-0.12, 0.7, 0);
+        robot.add(leftHipJoint);
+        
+        const rightHipJoint = new THREE.Mesh(jointGeo, jointMaterial);
+        rightHipJoint.position.set(0.12, 0.7, 0);
+        robot.add(rightHipJoint);
+        
+        scene.add(robot);
+        
+        // 动画状态
+        let currentAction = 'idle';
+        let animationTime = 0;
+        
+        // 动作信息
+        const actions = {
+            idle: { name: '待机', status: '静止', desc: '机器人处于待机状态，保持平衡' },
+            walk: { name: '行走', status: '移动中', desc: '双足交替行走，前后摆臂' },
+            grasp: { name: '抓取', status: '操作中', desc: '右臂前伸，手掌闭合抓取物体' },
+            look: { name: '注视', status: '视觉追踪', desc: '头部转动，看向指定方向' },
+            speak: { name: '说话', status: '语音交互', desc: '头部轻微摆动，嘴巴发光' },
+            handover: { name: '递送', status: '交接中', desc: '手臂前伸，等待对方拿取' },
+            wave: { name: '挥手', status: '打招呼', desc: '右手举起，左右摆动' }
+        };
+        
+        // 按钮事件
+        document.getElementById('btn-idle').onclick = () => setAction('idle');
+        document.getElementById('btn-walk').onclick = () => setAction('walk');
+        document.getElementById('btn-grasp').onclick = () => setAction('grasp');
+        document.getElementById('btn-look').onclick = () => setAction('look');
+        document.getElementById('btn-speak').onclick = () => setAction('speak');
+        document.getElementById('btn-handover').onclick = () => setAction('handover');
+        document.getElementById('btn-wave').onclick = () => setAction('wave');
+        
+        function setAction(action) {
+            currentAction = action;
+            animationTime = 0;
+            
+            document.querySelectorAll('.action-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('btn-' + action).classList.add('active');
+            
+            const info = actions[action];
+            document.getElementById('actionName').textContent = info.name;
+            document.getElementById('actionStatus').textContent = info.status;
+            document.getElementById('actionDesc').textContent = info.desc;
+        }
+        
+        // 复位姿势
+        function resetPose() {
+            robot.position.y = 0;
+            robot.position.z = 0;
+            robot.rotation.set(0, 0, 0);
+            head.rotation.set(0, 0, 0);
+            leftUpperArm.rotation.set(0, 0, 0);
+            rightUpperArm.rotation.set(0, 0, 0);
+            leftLowerArm.rotation.set(0, 0, 0);
+            rightLowerArm.rotation.set(0, 0, 0);
+            leftUpperLeg.rotation.set(0, 0, 0);
+            rightUpperLeg.rotation.set(0, 0, 0);
+            leftLowerLeg.rotation.set(0, 0, 0);
+            rightLowerLeg.rotation.set(0, 0, 0);
+            rightHand.position.set(0.32, 0.55, 0);
+            rightHand.scale.set(1, 1, 1);
+            eyeMat.emissiveIntensity = 1;
+        }
+        
+        // 动画循环
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            animationTime += 0.05;
+            
+            switch(currentAction) {
+                case 'idle':
+                    robot.position.y = Math.sin(animationTime * 0.5) * 0.01;
+                    head.rotation.z = Math.sin(animationTime * 0.3) * 0.02;
+                    break;
+                    
+                case 'walk':
+                    const walkCycle = Math.sin(animationTime * 3);
+                    leftUpperLeg.rotation.x = walkCycle * 0.4;
+                    rightUpperLeg.rotation.x = -walkCycle * 0.4;
+                    leftLowerLeg.rotation.x = Math.max(0, walkCycle * 0.3);
+                    rightLowerLeg.rotation.x = Math.max(0, -walkCycle * 0.3);
+                    leftUpperArm.rotation.x = -walkCycle * 0.3;
+                    rightUpperArm.rotation.x = walkCycle * 0.3;
+                    robot.position.y = Math.abs(Math.sin(animationTime * 6)) * 0.02;
+                    robot.position.z = Math.sin(animationTime * 1.5) * 0.5;
+                    break;
+                    
+                case 'grasp':
+                    rightUpperArm.rotation.z = -Math.PI * 0.3;
+                    rightUpperArm.rotation.x = -Math.PI * 0.2;
+                    rightLowerArm.rotation.x = -Math.PI * 0.5;
+                    rightHand.position.set(-0.5, 0.9, 0.3);
+                    rightHand.scale.set(0.6, 0.8, 0.8);
+                    break;
+                    
+                case 'look':
+                    head.rotation.y = Math.sin(animationTime * 0.8) * 0.5;
+                    head.rotation.x = Math.sin(animationTime * 0.4) * 0.1;
+                    break;
+                    
+                case 'speak':
+                    head.rotation.y = Math.sin(animationTime * 2) * 0.15;
+                    head.rotation.x = Math.sin(animationTime * 4) * 0.05;
+                    eyeMat.emissiveIntensity = 0.5 + Math.sin(animationTime * 8) * 0.5;
+                    break;
+                    
+                case 'handover':
+                    rightUpperArm.rotation.z = -Math.PI * 0.4;
+                    rightUpperArm.rotation.x = -Math.PI * 0.4;
+                    rightLowerArm.rotation.x = -Math.PI * 0.3;
+                    rightHand.position.set(-0.4, 0.7, 0.4);
+                    robot.position.y = Math.sin(animationTime * 2) * 0.01;
+                    break;
+                    
+                case 'wave':
+                    rightUpperArm.rotation.z = -Math.PI * 0.8;
+                    rightUpperArm.rotation.x = Math.sin(animationTime * 4) * 0.5;
+                    rightLowerArm.rotation.x = -Math.PI * 0.3;
+                    leftUpperArm.rotation.x = Math.sin(animationTime * 2) * 0.2;
+                    break;
+            }
+            
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        
+        // 窗口调整
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+        
+        animate();
+    </script>
+</body>
+</html>
