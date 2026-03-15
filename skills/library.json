@@ -1,0 +1,158 @@
+{
+  "version": "1.0",
+  "robots": ["Unitree G1", "Unitree H1", "Unitree H2", "银河通用机器人", "智源机器人"],
+  
+  "atomic_skills": {
+    "locate": {
+      "name": "目标定位",
+      "description": "通过视觉/SLAM定位目标物体或位置",
+      "input": {"target": "string"},
+      "output": {"position": {"x": "float", "y": "float", "z": "float"}, "orientation": "float"},
+      "timeout": 10,
+      "robot_capability": ["vision", "slam"]
+    },
+    "walk_to": {
+      "name": "行走导航",
+      "description": "自主导航到指定位置",
+      "input": {"x": "float", "y": "float", "theta": "float"},
+      "output": {"status": "success/failed", "distance": "float"},
+      "timeout": 60,
+      "robot_capability": ["locomotion", "nav"]
+    },
+    "grasp": {
+      "name": "抓取",
+      "description": "使用机械臂抓取物体",
+      "input": {"object_id": "string", "hand": "left/right"},
+      "output": {"status": "success/failed", "force": "float"},
+      "timeout": 15,
+      "robot_capability": ["manipulator", "dexterous_hand"]
+    },
+    "release": {
+      "name": "释放",
+      "description": "松手释放物体",
+      "input": {"hand": "left/right"},
+      "output": {"status": "success"},
+      "timeout": 5,
+      "robot_capability": ["dexterous_hand"]
+    },
+    "look_at": {
+      "name": "视觉注视",
+      "description": "转头看向指定目标",
+      "input": {"target": "string/position"},
+      "output": {"status": "success"},
+      "timeout": 3,
+      "robot_capability": ["head_motor", "vision"]
+    },
+    "speak": {
+      "name": "语音播报",
+      "description": "合成语音播报内容",
+      "input": {"text": "string", "emotion": "neutral/happy/sad"},
+      "output": {"status": "success"},
+      "timeout": 10,
+      "robot_capability": ["tts"]
+    },
+    "listen": {
+      "name": "语音唤醒/聆听",
+      "description": "唤醒词聆听用户指令",
+      "input": {"wake_word": "string", "timeout": "int"},
+      "output": {"text": "string", "intent": "string"},
+      "timeout": 10,
+      "robot_capability": ["asr", "microphone"]
+    },
+    "handover": {
+      "name": "递送交接",
+      "description": "将物体递给用户或指定对象",
+      "input": {"hand": "left/right", "height": "float"},
+      "output": {"status": "success/failed"},
+      "timeout": 10,
+      "robot_capability": ["dexterous_hand"]
+    },
+    "detect_obstacle": {
+      "name": "障碍物检测",
+      "description": "检测前方障碍物",
+      "input": {"range": "float"},
+      "output": {"obstacles": [{"type": "string", "position": "object", "distance": "float"}]},
+      "timeout": 2,
+      "robot_capability": ["lidar", "vision"]
+    },
+    "avoid_obstacle": {
+      "name": "避障导航",
+      "description": "动态路径规划避障",
+      "input": {"target": "position", "mode": "safe/fast"},
+      "output": {"status": "success", "path": "array"},
+      "timeout": 60,
+      "robot_capability": ["nav", "lidar"]
+    },
+    "climb_stairs": {
+      "name": "楼梯攀爬",
+      "description": "上下楼梯",
+      "input": {"direction": "up/down", "step_count": "int"},
+      "output": {"status": "success/failed", "steps_climbed": "int"},
+      "timeout": 30,
+      "robot_capability": ["locomotion", "balance"]
+    },
+    "open_door": {
+      "name": "开门",
+      "description": "识别并打开门把手",
+      "input": {"door_id": "string"},
+      "output": {"status": "success/failed", "door_angle": "float"},
+      "timeout": 20,
+      "robot_capability": ["manipulator", "vision"]
+    },
+    "press_button": {
+      "name": "按按钮",
+      "description": "按压实体按钮",
+      "input": {"button_id": "string", "force": "float"},
+      "output": {"status": "success"},
+      "timeout": 10,
+      "robot_capability": ["manipulator"]
+    },
+    "detect_fall": {
+      "name": "跌倒检测",
+      "description": "检测机器人是否跌倒",
+      "input": {},
+      "output": {"is_fallen": "bool", "fall_direction": "string"},
+      "timeout": 1,
+      "robot_capability": ["imu"]
+    },
+    "stand_up": {
+      "name": "起立",
+      "description": "从跌倒状态恢复站立",
+      "input": {},
+      "output": {"status": "success/failed"},
+      "timeout": 15,
+      "robot_capability": ["locomotion", "balance"]
+    },
+    "charge": {
+      "name": "自动充电",
+      "description": "返回充电桩充电",
+      "input": {"dock_id": "string"},
+      "output": {"status": "charging/idle"},
+      "timeout": 120,
+      "robot_capability": ["power"]
+    }
+  },
+  
+  "composite_skills": {
+    "greet_guest": {
+      "name": "迎接客人",
+      "description": "检测来客并礼貌迎接",
+      "skills": ["locate", "walk_to", "look_at", "speak"]
+    },
+    "bring_item": {
+      "name": "取物递送",
+      "description": "找到并递送指定物品",
+      "skills": ["locate", "walk_to", "grasp", "walk_to", "handover"]
+    },
+    "guide_way": {
+      "name": "引导带路",
+      "description": "带领用户前往目的地",
+      "skills": ["locate", "walk_to", "detect_obstacle", "avoid_obstacle", "speak"]
+    },
+    "emergency_stop": {
+      "name": "紧急停止",
+      "description": "检测异常并紧急停止",
+      "skills": ["detect_fall", "stand_up"]
+    }
+  }
+}
