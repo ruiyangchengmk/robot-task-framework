@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>机器人动作演示</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+            min-height: 100vh;
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+            color: #00d4ff;
+            text-shadow: 0 0 20px rgba(0, 212, 255, 0.5);
+        }
+        
+        .subtitle {
+            color: rgba(255,255,255,0.5);
+            margin-bottom: 30px;
+        }
+        
+        .container {
+            display: flex;
+            gap: 30px;
+            flex-wrap: wrap;
+            justify-content: center;
+            max-width: 1200px;
+        }
+        
+        .panel {
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 16px;
+            padding: 20px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .controls {
+            min-width: 200px;
+        }
+        
+        .controls h2 {
+            font-size: 16px;
+            margin-bottom: 15px;
+            color: #00d4ff;
+        }
+        
+        .btn-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        button {
+            padding: 12px 20px;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            color: #fff;
+            cursor: pointer;
+            font-size: 14px;
+            text-align: left;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        button:hover {
+            background: rgba(0,212,255,0.2);
+            border-color: #00d4ff;
+            transform: translateX(5px);
+        }
+        
+        button.active {
+            background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%);
+            border-color: #00d4ff;
+        }
+        
+        .emoji { font-size: 20px; }
+        
+        .stage {
+            width: 400px;
+            height: 500px;
+            position: relative;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            overflow: hidden;
+        }
+        
+        .ground {
+            position: absolute;
+            bottom: 20px;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #00d4ff, transparent);
+        }
+        
+        /* 机器人 SVG */
+        .robot {
+            position: relative;
+            width: 150px;
+            height: 350px;
+            transition: all 0.5s ease;
+        }
+        
+        /* 身体部分 */
+        .robot .torso {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            top: 120px;
+            width: 60px;
+            height: 80px;
+            background: linear-gradient(180deg, #3a3a5a 0%, #2a2a4a 100%);
+            border-radius: 10px;
+            border: 2px solid #00d4ff;
+            box-shadow: 0 0 15px rgba(0, 212, 255, 0.3);
+        }
+        
+        /* 头部 */
+        .robot .head {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            top: 30px;
+            width: 50px;
+            height: 55px;
+            background: linear-gradient(180deg, #2a2a4a 0%, #1a1a3a 100%);
+            border-radius: 12px;
+            border: 2px solid #00d4ff;
+        }
+        
+        .robot .eyes {
+            position: absolute;
+            top: 18px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 12px;
+        }
+        
+        .robot .eye {
+            width: 10px;
+            height: 10px;
+            background: #00ffff;
+            border-radius: 50%;
+            box-shadow: 0 0 10px #00ffff;
+            animation: blink 3s infinite;
+        }
+        
+        @keyframes blink {
+            0%, 90%, 100% { transform: scaleY(1); }
+            95% { transform: scaleY(0.1); }
+        }
+        
+        /* 脖子 */
+        .robot .neck {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            top: 85px;
+            width: 15px;
+            height: 15px;
+            background: #00d4ff;
+            border-radius: 50%;
+        }
+        
+        /* 手臂 */
+        .robot .arm {
+            position: absolute;
+            top: 125px;
+            width: 18px;
+            height: 70px;
+            background: linear-gradient(180deg, #3a3a5a 0%, #2a2a4a 100%);
+            border-radius: 10px;
+            border: 1px solid #00d4ff;
+            transform-origin: top center;
+            transition: all 0.3s ease;
+        }
+        
+        .robot .arm.left { left: 20px; }
+        .robot .arm.right { right: 20px; }
+        
+        /* 前臂 */
+        .robot .forearm {
+            position: absolute;
+            top: 55px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 14px;
+            height: 50px;
+            background: linear-gradient(180deg, #3a3a5a 0%, #2a2a4a 100%);
+            border-radius: 8px;
+            border: 1px solid #00d4ff;
+            transform-origin: top center;
+            transition: all 0.3s ease;
+        }
+        
+        /* 手 */
+        .robot .hand {
+            position: absolute;
+            top: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 20px;
+            height: 25px;
+            background: #00d4ff;
+            border-radius: 5px;
+            transition: all 0.3s ease;
+        }
+        
+        /* 髋部 */
+        .robot .hip {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            top: 200px;
+            width: 55px;
+            height: 25px;
+            background: linear-gradient(180deg, #3a3a5a 0%, #2a2a4a 100%);
+            border-radius: 8px;
+            border: 1px solid #00d4ff;
+        }
+        
+        /* 腿部 */
+        .robot .leg {
+            position: absolute;
+            top: 220px;
+            width: 22px;
+            height: 90px;
+            background: linear-gradient(180deg, #3a3a5a 0%, #2a2a4a 100%);
+            border-radius: 10px;
+            border: 1px solid #00d4ff;
+            transform-origin: top center;
+            transition: all 0.3s ease;
+        }
+        
+        .robot .leg.left { left: 40px; }
+        .robot .leg.right { right: 40px; }
+        
+        /* 小腿 */
+        .robot .lowerleg {
+            position: absolute;
+            top: 75px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 18px;
+            height: 60px;
+            background: linear-gradient(180deg, #3a3a5a 0%, #2a2a4a 100%);
+            border-radius: 8px;
+            border: 1px solid #00d4ff;
+            transform-origin: top center;
+            transition: all 0.3s ease;
+        }
+        
+        /* 脚 */
+        .robot .foot {
+            position: absolute;
+            top: 130px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 28px;
+            height: 12px;
+            background: #2a2a4a;
+            border-radius: 4px;
+            border: 1px solid #00d4ff;
+        }
+        
+        /* 关节 */
+        .robot .joint {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: #00d4ff;
+            border-radius: 50%;
+            box-shadow: 0 0 8px #00d4ff;
+        }
+        
+        .robot .joint.shoulder-left { top: 120px; left: 18px; }
+        .robot .joint.shoulder-right { top: 120px; right: 18px; }
+        .robot .joint.hip-left { top: 215px; left: 46px; }
+        .robot .joint.hip-right { top: 215px; right: 46px; }
+        
+        /* 信息面板 */
+        .info {
+            min-width: 220px;
+        }
+        
+        .info h2 {
+            font-size: 16px;
+            margin-bottom: 15px;
+            color: #00d4ff;
+        }
+        
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .info-label { color: rgba(255,255,255,0.6); }
+        .info-value { color: #fff; font-weight: bold; }
+        
+        /* 动作动画 */
+        @keyframes idle-breathe {
+            0%, 100% { transform: translateX(-50%) translateY(0); }
+            50% { transform: translateX(-50%) translateY(-3px); }
+        }
+        
+        @keyframes walk-legs {
+            0%, 100% { transform: rotate(-20deg); }
+            50% { transform: rotate(20deg); }
+        }
+        
+        @keyframes walk-arms {
+            0%, 100% { transform: rotate(20deg); }
+            50% { transform: rotate(-20deg); }
+        }
+        
+        @keyframes look-around {
+            0%, 100% { transform: translateX(-50%) rotateY(0deg); }
+            25% { transform: translateX(-50%) rotateY(20deg); }
+            75% { transform: translateX(-50%) rotateY(-20deg); }
+        }
+        
+        @keyframes speak-pulse {
+            0%, 100% { box-shadow: 0 0 10px #00ffff; }
+            50% { box-shadow: 0 0 25px #00ffff, 0 0 40px #00ffff; }
+        }
+        
+        @keyframes wave-arm {
+            0%, 100% { transform: rotate(-30deg); }
+            50% { transform: rotate(-60deg); }
+        }
+        
+        /* 动作类 */
+        .robot.action-idle .torso {
+            animation: idle-breathe 2s ease-in-out infinite;
+        }
+        
+        .robot.action-walk .leg.left {
+            animation: walk-legs 0.8s ease-in-out infinite;
+        }
+        
+        .robot.action-walk .leg.right {
+            animation: walk-legs 0.8s ease-in-out infinite;
+            animation-delay: -0.4s;
+        }
+        
+        .robot.action-walk .arm.left {
+            animation: walk-arms 0.8s ease-in-out infinite;
+        }
+        
+        .robot.action-walk .arm.right {
+            animation: walk-arms 0.8s ease-in-out infinite;
+            animation-delay: -0.4s;
+        }
+        
+        .robot.action-look .head {
+            animation: look-around 3s ease-in-out infinite;
+        }
+        
+        .robot.action-speak .eye {
+            animation: speak-pulse 0.5s ease-in-out infinite;
+        }
+        
+        .robot.action-wave .arm.right {
+            animation: wave-arm 0.5s ease-in-out infinite;
+        }
+        
+        .robot.action-grasp .arm.right {
+            transform: rotate(-60deg) translateY(20px);
+        }
+        
+        .robot.action-grasp .forearm.right {
+            transform: rotate(-80deg) translateY(10px);
+        }
+        
+        .robot.action-grasp .hand.right {
+            transform: translateX(-50%) scaleX(0.5);
+        }
+        
+        .robot.action-handover .arm.right {
+            transform: rotate(-45deg) translateY(30px);
+        }
+        
+        .robot.action-handover .forearm.right {
+            transform: rotate(-30deg);
+        }
+        
+        .robot.action-handover .hand.right {
+            transform: translateX(-50%) scaleX(0.8);
+        }
+        
+    </style>
+</head>
+<body>
+    <h1>🤖 机器人动作演示</h1>
+    <p class="subtitle">点击按钮切换动作</p>
+    
+    <div class="container">
+        <div class="panel controls">
+            <h2>动作选择</h2>
+            <div class="btn-group">
+                <button onclick="setAction('idle')" class="active" id="btn-idle">
+                    <span class="emoji">🧍</span> 待机
+                </button>
+                <button onclick="setAction('walk')" id="btn-walk">
+                    <span class="emoji">🚶</span> 行走
+                </button>
+                <button onclick="setAction('grasp')" id="btn-grasp">
+                    <span class="emoji">✊</span> 抓取
+                </button>
+                <button onclick="setAction('look')" id="btn-look">
+                    <span class="emoji">👀</span> 注视
+                </button>
+                <button onclick="setAction('speak')" id="btn-speak">
+                    <span class="emoji">🗣️</span> 说话
+                </button>
+                <button onclick="setAction('handover')" id="btn-handover">
+                    <span class="emoji">🤝</span> 递送
+                </button>
+                <button onclick="setAction('wave')" id="btn-wave">
+                    <span class="emoji">👋</span> 挥手
+                </button>
+            </div>
+        </div>
+        
+        <div class="panel stage">
+            <div class="robot action-idle" id="robot">
+                <div class="head">
+                    <div class="eyes">
+                        <div class="eye"></div>
+                        <div class="eye"></div>
+                    </div>
+                </div>
+                <div class="neck"></div>
+                <div class="torso"></div>
+                <div class="arm left">
+                    <div class="forearm">
+                        <div class="hand"></div>
+                    </div>
+                </div>
+                <div class="arm right">
+                    <div class="forearm">
+                        <div class="hand"></div>
+                    </div>
+                </div>
+                <div class="joint shoulder-left"></div>
+                <div class="joint shoulder-right"></div>
+                <div class="hip"></div>
+                <div class="leg left">
+                    <div class="lowerleg">
+                        <div class="foot"></div>
+                    </div>
+                </div>
+                <div class="leg right">
+                    <div class="lowerleg">
+                        <div class="foot"></div>
+                    </div>
+                </div>
+                <div class="joint hip-left"></div>
+                <div class="joint hip-right"></div>
+            </div>
+            <div class="ground"></div>
+        </div>
+        
+        <div class="panel info">
+            <h2>当前状态</h2>
+            <div class="info-item">
+                <span class="info-label">动作</span>
+                <span class="info-value" id="actionName">待机</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">状态</span>
+                <span class="info-value" id="actionStatus">静止</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">描述</span>
+                <span class="info-value" id="actionDesc">机器人处于待机状态</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const actions = {
+            idle: { name: '待机', status: '静止', desc: '机器人处于待机状态，保持平衡' },
+            walk: { name: '行走', status: '移动中', desc: '双足交替行走，前后摆臂' },
+            grasp: { name: '抓取', status: '操作中', desc: '右臂前伸，手掌闭合抓取物体' },
+            look: { name: '注视', status: '视觉追踪', desc: '头部转动，看向指定方向' },
+            speak: { name: '说话', status: '语音交互', desc: '头部轻微摆动，眼睛发光' },
+            handover: { name: '递送', status: '交接中', desc: '手臂前伸，等待对方拿取' },
+            wave: { name: '挥手', status: '打招呼', desc: '右手举起，左右摆动' }
+        };
+        
+        function setAction(actionName) {
+            const robot = document.getElementById('robot');
+            
+            // 移除所有动作类
+            robot.classList.remove('action-idle', 'action-walk', 'action-grasp', 'action-look', 'action-speak', 'action-handover', 'action-wave');
+            
+            // 添加新动作类
+            robot.classList.add('action-' + actionName);
+            
+            // 更新按钮状态
+            document.querySelectorAll('button').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('btn-' + actionName).classList.add('active');
+            
+            // 更新信息
+            const info = actions[actionName];
+            document.getElementById('actionName').textContent = info.name;
+            document.getElementById('actionStatus').textContent = info.status;
+            document.getElementById('actionDesc').textContent = info.desc;
+        }
+    </script>
+</body>
+</html>
